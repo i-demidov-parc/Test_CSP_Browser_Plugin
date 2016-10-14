@@ -3,7 +3,9 @@
 <head>
 	<title>LCPlugin</title>
 	<meta charset="utf-8" />
-	<script type="text/javascript" src="script.js"></script>
+	<script type="text/javascript" src="js_libs/es6-promise.min.js"></script>
+	<script type="text/javascript" src="js_libs/cadesplugin_api.js"></script>
+	<script type="text/javascript" src="crypto_pro_script.js"></script>
 	<style>
 		.row {
 			height: 25px;
@@ -11,8 +13,10 @@
 		}
 	</style>
 </head>
-<body onLoad="init_obj();">
-	<div id="for_plugin"></div>
+<body>
+
+</body>
+<body>
 	<div class="row">
 		<button onclick="toggleIsAlertMessages(this)" id="messages_types_toggler">Выводить сообщения в документе</button>
 		<button onclick="clearMessages()" id="clear_messages">Очистить</button>
