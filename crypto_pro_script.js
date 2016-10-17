@@ -92,12 +92,24 @@ function createCertificatesSelectOptions (certificates) {
 }
 
 function sign_file () {
+	var content = 'wat';
+
 	if (cadesplugin.CreateObjectAsync) {
 		getSelectedCert().then(function (cert) {
-			console.log(cert);
+			CAdESCOMSigner.propset_Certificate(cert).then(function () {
+				CAdESCOMSignedData.propset_Content(content).then(function () {
+					CAdESCOMSignedData.SignCades(CAdESCOMSigner, cadesplugin.CADESCOM_CADES_BES).then(function (result) {
+						logFunction(result);
+					});
+				});
+			});
 		});
 	} else {
-		console.log(getSelectedCert());
+		CAdESCOMSigner.Certificate = getSelectedCert();
+
+		CAdESCOMSignedData.Content = content;
+
+		logFunction(CAdESCOMSignedData.SignCades(CAdESCOMSigner, cadesplugin.CADESCOM_CADES_BES));
 	}
 }
 
