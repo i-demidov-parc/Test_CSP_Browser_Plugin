@@ -48,12 +48,91 @@ function checkPluginMethods() {
 	}
 }
 
+function syncCreateCertificatesSelectOptions (certificates) {
+	var select = document.getElementById('certificates'),
+		cert;
+
+	for (var i = 1, imax = certificates.Count; i <= imax; i++) {
+		cert = certificates.Item(i);
+
+		select.options[select.options.length] = new Option(cert.SubjectName, i);
+		
+		console.log('certificate ' + i, cert.SubjectName);
+	}
+
+	select.size = certificates.Count;
+}
+
+function asyncCreateCertificatesSelectOptions (certificates) {
+	var select = document.getElementById('certificates');
+
+	certificates.then(function (collection) {
+		collection.Count.then(function (count) {
+			select.size = count;
+
+			for (var i = 1, imax = count; i <= imax; i++) {
+				collection.Item(i).then((function (i) {
+					return function (item) {
+						item.SubjectName.then(function (name) {
+							select.options[select.options.length] = new Option(name, i);
+						});
+					};
+				})(i));
+			}
+		});
+	});
+}
+
+function createCertificatesSelectOptions (certificates) {
+	if (cadesplugin.CreateObjectAsync) {
+		asyncCreateCertificatesSelectOptions(certificates);
+	} else {
+		syncCreateCertificatesSelectOptions(certificates);
+	}
+}
+
+function sign_file () {
+	if (cadesplugin.CreateObjectAsync) {
+		getSelectedCert().then(function (cert) {
+			console.log(cert);
+		});
+	} else {
+		console.log(getSelectedCert());
+	}
+}
+
+function asyncGetSelectedCert (index) {
+	return new Promise(function (resolve) {
+		CAPICOMStore.Certificates.then(function (collection) {
+			collection.Item(index).then(function (cert) {
+				resolve(cert);
+			});
+		});
+	});
+}
+
+function syncGetSelectedCert (index) {
+	return CAPICOMStore.Certificates.Item(index);
+}
+
+function getSelectedCert () {
+	var select = document.getElementById('certificates'),
+		index = parseInt(select.value, 10) || 1;
+
+	if (cadesplugin.CreateObjectAsync) {
+		return asyncGetSelectedCert(index);
+	} else {
+		return syncGetSelectedCert(index);
+	}
+}
+
 function syncLoading (loadedModules) {
 	console.log('syncLoading');
 
-	loadedModules.CAdESCOMStore = cadesplugin.CreateObject("CAdESCOM.Store"),
+	//loadedModules.CAdESCOMStore = cadesplugin.CreateObject("CAdESCOM.Store"),
 	loadedModules.CAdESCOMSigner = cadesplugin.CreateObject("CAdESCOM.CPSigner"),
 	loadedModules.CAPICOMStore = cadesplugin.CreateObject("CAPICOM.Store");
+	loadedModules.CAdESCOMSignedData = cadesplugin.CreateObject("CAdESCOM.CadesSignedData");
 
 	for (var key in loadedModules) {
 		if (loadedModules.hasOwnProperty(key)) {
@@ -63,23 +142,16 @@ function syncLoading (loadedModules) {
 
 	console.log('all modules loaded', loadedModules);
 
-	console.log('certificates before store open', loadedModules.CAPICOMStore.Certificates);
+	loadedModules.CAPICOMStore.Open(cadesplugin.CAPICOM_CURRENT_USER_STORE, cadesplugin.CAPICOM_MY_STORE, cadesplugin.CAPICOM_STORE_OPEN_MAXIMUM_ALLOWED);
 
-	console.log('store open', loadedModules.CAPICOMStore.Open(cadesplugin.CAPICOM_CURRENT_USER_STORE, cadesplugin.CAPICOM_MY_STORE, cadesplugin.CAPICOM_STORE_OPEN_MAXIMUM_ALLOWED));
-
-	console.log('certificates after store open', loadedModules.CAPICOMStore.Certificates);
-
-	console.log('certificates count', loadedModules.CAPICOMStore.Certificates.Count);
-
-	for (var i = 1, imax = loadedModules.CAPICOMStore.Certificates.Count; i <= imax; i++) {
-		console.log('certificate ' + i, loadedModules.CAPICOMStore.Certificates.Item(i));
-	}
+	createCertificatesSelectOptions(loadedModules.CAPICOMStore.Certificates);
 }
 
 function asyncLoading (loadedModules) {
 	console.log('asyncLoading');
 
-	var CAdESCOMStore = cadesplugin.CreateObjectAsync("CAdESCOM.Store"),
+	var CAdESCOMSignedData = cadesplugin.CreateObjectAsync("CAdESCOM.CadesSignedData"),
+		//CAdESCOMStore = cadesplugin.CreateObjectAsync("CAdESCOM.Store"),
 		CAdESCOMSigner = cadesplugin.CreateObjectAsync("CAdESCOM.CPSigner"),
 		CAPICOMStore = cadesplugin.CreateObjectAsync("CAPICOM.Store"),
 		load = new Promise(function (resolve, reject) {
@@ -93,8 +165,16 @@ function asyncLoading (loadedModules) {
 				return true;
 			};
 
-			CAdESCOMStore.then(function (module) {
+			/*CAdESCOMStore.then(function (module) {
 				loadedModules.CAdESCOMStore = module;
+
+				if (checkLoadedStatus()) {
+					resolve();
+				}
+			}, function () {});*/
+
+			CAdESCOMSignedData.then(function (module) {
+				loadedModules.CAdESCOMSignedData = module;
 
 				if (checkLoadedStatus()) {
 					resolve();
@@ -127,34 +207,17 @@ function asyncLoading (loadedModules) {
 
 		console.log('all modules loaded', loadedModules);
 
-		loadedModules.CAPICOMStore.Certificates.then(function () {
-			console.log('certificates before store open', arguments);
-		}, function () {console.log('certificates before store open', arguments);});
-
 		loadedModules.CAPICOMStore.Open(cadesplugin.CAPICOM_CURRENT_USER_STORE, cadesplugin.CAPICOM_MY_STORE, cadesplugin.CAPICOM_STORE_OPEN_MAXIMUM_ALLOWED);
 
-		loadedModules.CAPICOMStore.Certificates.then(function (collection) {
-			collection.Count.then(function (count) {
-				for (var i = 1, imax = count; i <= imax; i++) {
-					collection.Item(i).then((function (i) {
-						return function (item) {
-							console.log('certificate ' + i, item);
-						};
-					})(i));
-				}
-			});
-
-			console.log('certificates after store open', collection);
-		}, function () {});
-
-		//console.log('certificates after store open', loadedModules.CAPICOMStore.Certificates);
+		createCertificatesSelectOptions(loadedModules.CAPICOMStore.Certificates);
 	});
 }
 
 cadesplugin.then(function () {
 	var loadedModules = {
-			CAdESCOMStore: null,
+			//CAdESCOMStore: null,
 			CAdESCOMSigner: null,
+			CAdESCOMSignedData: null,
 			CAPICOMStore: null
 		};
 
