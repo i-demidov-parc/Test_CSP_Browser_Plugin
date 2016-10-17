@@ -92,25 +92,39 @@ function createCertificatesSelectOptions (certificates) {
 }
 
 function sign_file () {
-	var content = 'wat';
+	var fileReader = new FileReader,
+		file = document.getElementById("file").files[0],
+		content;
 
-	if (cadesplugin.CreateObjectAsync) {
-		getSelectedCert().then(function (cert) {
-			CAdESCOMSigner.propset_Certificate(cert).then(function () {
-				CAdESCOMSignedData.propset_Content(content).then(function () {
-					CAdESCOMSignedData.SignCades(CAdESCOMSigner, cadesplugin.CADESCOM_CADES_BES).then(function (result) {
-						logFunction(result);
+	if (!file) {
+		return;
+	}
+		
+	fileReader.readAsDataURL(file);
+
+	fileReader.onload = function (e) {
+		var header = ";base64,",
+			fileData = e.target.result,
+			content = fileData.substr(fileData.indexOf(header) + header.length);
+
+		if (cadesplugin.CreateObjectAsync) {
+			getSelectedCert().then(function (cert) {
+				CAdESCOMSigner.propset_Certificate(cert).then(function () {
+					CAdESCOMSignedData.propset_Content(content).then(function () {
+						CAdESCOMSignedData.SignCades(CAdESCOMSigner, cadesplugin.CADESCOM_CADES_BES).then(function (result) {
+							logFunction(result);
+						});
 					});
 				});
 			});
-		});
-	} else {
-		CAdESCOMSigner.Certificate = getSelectedCert();
+		} else {
+			CAdESCOMSigner.Certificate = getSelectedCert();
 
-		CAdESCOMSignedData.Content = content;
+			CAdESCOMSignedData.Content = content;
 
-		logFunction(CAdESCOMSignedData.SignCades(CAdESCOMSigner, cadesplugin.CADESCOM_CADES_BES));
-	}
+			logFunction(CAdESCOMSignedData.SignCades(CAdESCOMSigner, cadesplugin.CADESCOM_CADES_BES));
+		}
+	};
 }
 
 function asyncGetSelectedCert (index) {
