@@ -91,7 +91,10 @@ function createCertificatesSelectOptions (certificates) {
 	}
 }
 
-function sign_file () {
+function sign_file (isDetached) {
+	isDetached = isDetached || false;
+
+	//console.log('sign_file', isDetached);
 	var fileReader = new FileReader,
 		file = document.getElementById("file").files[0],
 		content;
@@ -99,7 +102,7 @@ function sign_file () {
 	if (!file) {
 		return;
 	}
-		
+
 	fileReader.readAsDataURL(file);
 
 	fileReader.onload = function (e) {
@@ -111,7 +114,7 @@ function sign_file () {
 			getSelectedCert().then(function (cert) {
 				CAdESCOMSigner.propset_Certificate(cert).then(function () {
 					CAdESCOMSignedData.propset_Content(content).then(function () {
-						CAdESCOMSignedData.SignCades(CAdESCOMSigner, cadesplugin.CADESCOM_CADES_BES).then(function (result) {
+						CAdESCOMSignedData.Sign(CAdESCOMSigner/*, cadesplugin.CADESCOM_CADES_DEFAULT*/).then(function (result) {
 							logFunction(result);
 						});
 					});
@@ -122,7 +125,7 @@ function sign_file () {
 
 			CAdESCOMSignedData.Content = content;
 
-			logFunction(CAdESCOMSignedData.SignCades(CAdESCOMSigner, cadesplugin.CADESCOM_CADES_BES));
+			logFunction(CAdESCOMSignedData.Sign(CAdESCOMSigner/*, cadesplugin.CADESCOM_CADES_DEFAULT*/));
 		}
 	};
 }
@@ -155,8 +158,7 @@ function getSelectedCert () {
 function syncLoading (loadedModules) {
 	console.log('syncLoading');
 
-	//loadedModules.CAdESCOMStore = cadesplugin.CreateObject("CAdESCOM.Store"),
-	loadedModules.CAdESCOMSigner = cadesplugin.CreateObject("CAdESCOM.CPSigner"),
+	loadedModules.CAdESCOMSigner = cadesplugin.CreateObject("CAdESCOM.CPSigner");
 	loadedModules.CAPICOMStore = cadesplugin.CreateObject("CAPICOM.Store");
 	loadedModules.CAdESCOMSignedData = cadesplugin.CreateObject("CAdESCOM.CadesSignedData");
 
@@ -177,7 +179,6 @@ function asyncLoading (loadedModules) {
 	console.log('asyncLoading');
 
 	var CAdESCOMSignedData = cadesplugin.CreateObjectAsync("CAdESCOM.CadesSignedData"),
-		//CAdESCOMStore = cadesplugin.CreateObjectAsync("CAdESCOM.Store"),
 		CAdESCOMSigner = cadesplugin.CreateObjectAsync("CAdESCOM.CPSigner"),
 		CAPICOMStore = cadesplugin.CreateObjectAsync("CAPICOM.Store"),
 		load = new Promise(function (resolve, reject) {
@@ -190,14 +191,6 @@ function asyncLoading (loadedModules) {
 
 				return true;
 			};
-
-			/*CAdESCOMStore.then(function (module) {
-				loadedModules.CAdESCOMStore = module;
-
-				if (checkLoadedStatus()) {
-					resolve();
-				}
-			}, function () {});*/
 
 			CAdESCOMSignedData.then(function (module) {
 				loadedModules.CAdESCOMSignedData = module;
@@ -241,7 +234,6 @@ function asyncLoading (loadedModules) {
 
 cadesplugin.then(function () {
 	var loadedModules = {
-			//CAdESCOMStore: null,
 			CAdESCOMSigner: null,
 			CAdESCOMSignedData: null,
 			CAPICOMStore: null
