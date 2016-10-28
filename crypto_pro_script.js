@@ -48,8 +48,19 @@ function checkPluginMethods() {
 	}
 }
 
-function syncCreateCertificatesSelectOptions (certificates) {
+function openCertificatesStore () {
+	CAPICOMStore.Open(cadesplugin.CAPICOM_CURRENT_USER_STORE, cadesplugin.CAPICOM_MY_STORE, cadesplugin.CAPICOM_STORE_OPEN_MAXIMUM_ALLOWED);
+}
+
+function closeCertificatesStore () {
+	CAPICOMStore.Close();
+}
+
+function syncCreateCertificatesSelectOptions () {
+	openCertificatesStore();
+
 	var select = document.getElementById('certificates'),
+		certificates = CAPICOMStore.Certificates;
 		cert;
 
 	for (var i = 1, imax = certificates.Count; i <= imax; i++) {
@@ -61,12 +72,16 @@ function syncCreateCertificatesSelectOptions (certificates) {
 	}
 
 	select.size = certificates.Count;
+
+	closeCertificatesStore();
 }
 
-function asyncCreateCertificatesSelectOptions (certificates) {
+function asyncCreateCertificatesSelectOptions () {
+	openCertificatesStore();
+
 	var select = document.getElementById('certificates');
 
-	certificates.then(function (collection) {
+	CAPICOMStore.Certificates.then(function (collection) {
 		collection.Count.then(function (count) {
 			select.size = count;
 
@@ -81,13 +96,52 @@ function asyncCreateCertificatesSelectOptions (certificates) {
 			}
 		});
 	});
+
+	closeCertificatesStore();
 }
 
-function createCertificatesSelectOptions (certificates) {
+function createCertificatesSelectOptions () {
 	if (cadesplugin.CreateObjectAsync) {
-		asyncCreateCertificatesSelectOptions(certificates);
+		asyncCreateCertificatesSelectOptions();
 	} else {
-		syncCreateCertificatesSelectOptions(certificates);
+		syncCreateCertificatesSelectOptions();
+	}
+}
+
+function asyncGetSelectedCert (index) {
+	openCertificatesStore();
+
+	var promise = new Promise(function (resolve) {
+			CAPICOMStore.Certificates.then(function (collection) {
+				collection.Item(index).then(function (cert) {
+					resolve(cert);
+				});
+			});
+		});
+
+	closeCertificatesStore();
+
+	return promise;
+}
+
+function syncGetSelectedCert (index) {
+	openCertificatesStore();
+
+	var cert = CAPICOMStore.Certificates.Item(index);
+
+	closeCertificatesStore();
+
+	return cert;
+}
+
+function getSelectedCert () {
+	var select = document.getElementById('certificates'),
+		index = parseInt(select.value, 10) || 1;
+
+	if (cadesplugin.CreateObjectAsync) {
+		return asyncGetSelectedCert(index);
+	} else {
+		return syncGetSelectedCert(index);
 	}
 }
 
@@ -130,31 +184,6 @@ function sign_file (isDetached) {
 	};
 }
 
-function asyncGetSelectedCert (index) {
-	return new Promise(function (resolve) {
-		CAPICOMStore.Certificates.then(function (collection) {
-			collection.Item(index).then(function (cert) {
-				resolve(cert);
-			});
-		});
-	});
-}
-
-function syncGetSelectedCert (index) {
-	return CAPICOMStore.Certificates.Item(index);
-}
-
-function getSelectedCert () {
-	var select = document.getElementById('certificates'),
-		index = parseInt(select.value, 10) || 1;
-
-	if (cadesplugin.CreateObjectAsync) {
-		return asyncGetSelectedCert(index);
-	} else {
-		return syncGetSelectedCert(index);
-	}
-}
-
 function syncLoading (loadedModules) {
 	console.log('syncLoading');
 
@@ -170,9 +199,7 @@ function syncLoading (loadedModules) {
 
 	console.log('all modules loaded', loadedModules);
 
-	loadedModules.CAPICOMStore.Open(cadesplugin.CAPICOM_CURRENT_USER_STORE, cadesplugin.CAPICOM_MY_STORE, cadesplugin.CAPICOM_STORE_OPEN_MAXIMUM_ALLOWED);
-
-	createCertificatesSelectOptions(loadedModules.CAPICOMStore.Certificates);
+	createCertificatesSelectOptions();
 }
 
 function asyncLoading (loadedModules) {
@@ -226,9 +253,7 @@ function asyncLoading (loadedModules) {
 
 		console.log('all modules loaded', loadedModules);
 
-		loadedModules.CAPICOMStore.Open(cadesplugin.CAPICOM_CURRENT_USER_STORE, cadesplugin.CAPICOM_MY_STORE, cadesplugin.CAPICOM_STORE_OPEN_MAXIMUM_ALLOWED);
-
-		createCertificatesSelectOptions(loadedModules.CAPICOMStore.Certificates);
+		createCertificatesSelectOptions();
 	});
 }
 
@@ -245,7 +270,6 @@ cadesplugin.then(function () {
 		syncLoading(loadedModules);
 	}
 		
-},
-function(error) {
+}, function(error) {
 	console.log('Не удалось загрузить плагин!');
 });
